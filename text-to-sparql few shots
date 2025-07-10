@@ -1,0 +1,90 @@
+For each inputed question generate a SPARQL SELECT query that answers the question, using only the vocabulary (classes, data properties, and object properties) defined in the provided ontology.   
+
+Constraints:
+- Only use the ontology provided below; do not use any external resources or assumptions. 
+- Include the needed prefixes according the ontology.
+- Do not add any text except the classification label and the SPARQL query. 
+- Assume that the engine supports reasoning/inference.
+- Ensure the query follows SPARQL syntax and compiles correctly.
+- The SPARQL query must directly correspond to the input question.
+
+Examples:
+- Example 1
+Question: ¿Cuánto sale un terreno en Berisso?
+SPARQL: "SELECT (AVG(?price) as ?avgPrice) ?currency
+WHERE {
+  ?listing a pronto:RealEstateListing ;
+           sioc:about ?realEstate ;
+           io:hasFeature ?priceFeature .
+
+  ?priceFeature a io:Price;
+                io:hasValue ?priceSpec ;
+                time:hasTime ?priceTime .
+
+  ?priceSpec a gr:UnitPriceSpecification ;
+             gr:hasCurrencyValue ?price ;
+             gr:hasCurrency ?currency ;
+             gr:priceType "BASE" .
+	
+  ?realEstate a io:Land.
+  ?realEstate io:hasFeature ?addressFeature .
+	?addressFeature a io:Address; 
+    				  io:hasValue ?postalAddress .
+                      ?postalAddress a io:PostalAddress ;
+    							     io:city io:district_Berisso_province_Buenos_Aires
+
+}
+GROUP BY ?currency"
+
+-Example 2
+Question: ¿Cuál es la relación entre metros cuadrados y precio de venta, en el último mes?
+SPARQL: "SELECT ?currency
+       (SUM(?price) / SUM(?surface) AS ?avgPricePerM2)
+WHERE {
+?listing a pronto:RealEstateListing ; 
+sioc:about ?realEstate .
+    ?realEstate a ?propertyType .
+      ?listing io:hasFeature ?priceFeature .
+            ?priceFeature a io:Price; 
+                      io:hasValue ?priceSpec .
+                      ?priceSpec a gr:UnitPriceSpecification ;
+                      gr:hasCurrency ?currency ;
+    				  gr:priceType "BASE" ;
+                      gr:hasCurrencyValue ?price .
+			?priceFeature time:hasTime ?date .
+    ?realEstate rec:includes ?space .
+    ?space io:hasFeature ?sufaceFeature .
+    ?sufaceFeature a io:Surface;
+    			io:hasValue ?sufaceSpec .
+    ?sufaceSpec a pronto:SizeSpecification ;
+    			gr:hasValue ?surface 		    
+	BIND(NOW() AS ?today)
+    BIND(IF(MONTH(?today) = 1, 12, MONTH(?today) - 1) AS ?previousMonth)
+    BIND(IF(MONTH(?today) = 1, YEAR(?hoy) - 1, YEAR(?hoy)) AS ?previousYear)
+    FILTER(MONTH(?date) = ?previousMonth && YEAR(?date) = ?previousYear)
+}
+    
+GROUP BY ?currency "
+
+- Example 3
+Question: ¿Cuáles fueron los precios de los inmuebles en la ciudad de Mar del Plata durante el mes de febrero?
+SPARQL: "SELECT ?listing ?price ?currency
+WHERE {
+?listing a pronto:RealEstateListing ; 
+sioc:about ?realEstate .
+    ?realEstate a ?propertyType .
+      ?listing io:hasFeature ?priceFeature .
+            ?priceFeature a io:Price; 
+                      io:hasValue ?priceSpec .
+                      ?priceSpec a gr:UnitPriceSpecification ;
+                      gr:hasCurrency ?currency ;
+    				  gr:priceType "BASE" ;
+                      gr:hasCurrencyValue ?price .
+			?priceFeature time:hasTime ?date .
+    ?realEstate io:hasFeature ?addressFeature .
+    ?addressFeature a io:Address;
+    			io:hasValue ?addressSpec .
+    ?addressSpec a io:PostalAddress  ;
+    			io:city io:district_Mar_del_Plata_province_Buenos_Aires		    
+	    FILTER(?date >= xsd:dateTime("2025-02-01T00:00:00") && ?date < xsd:dateTime("2025-02-28T00:00:00"))
+}
