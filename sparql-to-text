@@ -1,0 +1,5 @@
+Given the attached ontology and the following SPARQL templates, generate 10 questions in natural language in Spanish for each template.  
+Each question must correspond to one of the SPARQL templates (T1, T2, etc.) and must include spatial or temporal information, either explicitly or implicitly. The spatial information should be related to the Province of Buenos Aires. The questions should have variety. Do not add any explanations. Only output the questions.
+
+Templates:
+{template list, T1, T2, T3, T4}
