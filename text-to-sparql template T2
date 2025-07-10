@@ -1,0 +1,68 @@
+T2: Price comparison between two or more locations
+Examples of supported questions: ¿Qué diferencia de precio hay entre La Plata y Berisso?, ¿Cuál es el precio promedio por metro cuadrado de departamentos en San Telmo y Recoleta?
+
+aggregation_mode:
+  param: metric
+  values:
+    - id: price_per_m2
+      condition: "The question includes expressions like 'per square meter', 'm²', or similar."
+      select_clause: "SELECT ?locationUri ?currency (SUM(?price) / SUM(?surface) AS ?avgPricePerM2)"
+      result_var: "?avgPricePerM2"
+      requires_surface: true
+    - id: total_price
+      condition: "The question refers to 'average price' but does not mention surface area."
+      select_clause: "SELECT ?locationUri ?currency (AVG(?price) AS ?avgPrice)"
+      result_var: "?avgPrice"
+      requires_surface: false
+base_query: |
+  {{SELECT_CLAUSE}}
+  WHERE {
+    ?listing a pronto:RealEstateListing ;
+             sioc:about ?realEstate .
+    ?realEstate a ?propertyType ;
+                rec:includes ?space .
+    ?listing io:hasFeature ?priceFeature .
+    ?priceFeature a io:Price ;
+                  io:hasValue ?priceSpec .
+    ?priceSpec a gr:UnitPriceSpecification ;
+               gr:hasCurrency ?currency ;
+               gr:priceType "BASE" ;
+               gr:hasCurrencyValue ?price .
+    {{#if requires_surface}}
+    ?space io:hasFeature ?sufaceFeature .
+    ?sufaceFeature a io:Surface ;
+                   io:hasValue ?sufaceSpec .
+    ?sufaceSpec a pronto:SizeSpecification ;
+                gr:hasValue ?surface .
+    {{/if}}
+    ?realEstate io:hasFeature ?addressFeature .
+    ?addressFeature a io:Address ;
+                    io:hasValue ?addresSpec .
+    ?addresSpec a io:PostalAddress .
+    {{BLOCKS}}
+  }
+  GROUP BY ?currency ?locationUri
+  {{SORTING}}
+  {{LIMIT}}
+optional_blocks:
+  - id: property_type_filter
+    condition: "The question specifies the type of real estate"
+    sparql: |
+      FILTER (?propertyType = {rdfs:subClassOf rec:RealEstate})
+  - id: location_filter
+    condition: "The question mentions a place"
+    sparql: |
+      ?addresSpec ?propertyLocation ?locationUri .
+      FILTER (?propertyLocation = {io:city or io:neighborhood}) .
+      FILTER(?locationUri IN ({individuals of io:City or io.Neighborhood})) .
+  - id: time_filter
+    condition: "The question includes a temporal constraint"
+    sparql: |
+      ?priceFeature time:hasTime ?date .
+      FILTER(?date >= xsd:dateTime({DATE_FROM}) && ?date < xsd:dateTime({DATE_TO})) .
+sorting:
+  condition: "The question requires results ordered by price"
+  sparql: "ORDER BY DESC({RESULT_VAR})"
+limit:
+  condition: "The question requires a limited number of results (e.g., top 1)"
+  sparql: "LIMIT {N}"
