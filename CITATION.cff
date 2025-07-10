@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this dataset or code, please cite the following:"
+title: "Towards a Spatio-Temporal Knowledge Graph Question-Answering Benchmark for Real Estate"
+authors:
+  - family-names: Tanevitch
+    given-names: Luciana
+    orcid: https://orcid.org/0000-0002-5322-9314
+date-released: 2025-07-10
+version: "0.1"
+url: /https://github.com/tanevitch/QA-prompts
+keywords:
+  - STKGQA
+  - Question Answering
+  - Knowledge Graph
+  - Real Estate
+  - Benchmark
+license: MIT 
