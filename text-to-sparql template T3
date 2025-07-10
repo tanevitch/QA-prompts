@@ -1,0 +1,70 @@
+T3: Monthly price evolution (total or per square meter)
+Examples of supported questions: ¿Cómo evolucionó el precio de departamentos en Mar del Plata entre enero y junio?, ¿Cuánto subió el precio por m² en La Plata este año?
+
+aggregation_mode:
+  param: metric
+  values:
+    - id: price_per_m2
+      condition: "La pregunta menciona 'por metro cuadrado', 'm²', etc."
+      select_clause: "SELECT ?year ?month ?currency (SUM(?price) / SUM(?surface) AS ?avgPricePerM2)"
+      requires_surface: true
+    - id: total_price
+      condition: "La pregunta pide 'precio promedio' sin referirse a m²"
+      select_clause: "SELECT ?year ?month ?currency (AVG(?price) AS ?avgPrice)"
+      requires_surface: false
+base_query: |
+  {{SELECT_CLAUSE}}
+  WHERE {
+    ?listing a pronto:RealEstateListing ;
+             sioc:about ?realEstate .
+    ?realEstate a ?propertyType .
+    ?realEstate rec:includes ?space .
+    ?listing io:hasFeature ?priceFeature .
+    ?priceFeature a io:Price ;
+                  io:hasValue ?priceSpec ;
+                  time:hasTime ?date .
+    ?priceSpec a gr:UnitPriceSpecification ;
+               gr:hasCurrency ?currency ;
+               gr:priceType "BASE" ;
+               gr:hasCurrencyValue ?price .
+    {{#if requires_surface}}
+    ?space io:hasFeature ?sufaceFeature .
+    ?sufaceFeature a io:Surface ;
+                   io:hasValue ?sufaceSpec .
+    ?sufaceSpec a pronto:SizeSpecification ;
+                gr:hasValue ?surface .
+    {{/if}}
+    ?realEstate io:hasFeature ?addressFeature .
+    ?addressFeature a io:Address ;
+                   io:hasValue ?addresSpec .
+    ?addresSpec a io:PostalAddress .
+    FILTER(?date >= xsd:dateTime({DATE_FROM}) && ?date < xsd:dateTime({DATE_TO}))
+    BIND(YEAR(?date) AS ?year)
+    BIND(MONTH(?date) AS ?month)
+    {{ OPTIONAL_BLOCKS }}
+  }
+  GROUP BY ?currency ?year ?month
+  ORDER BY ?year ?month
+optional_blocks:
+  - id: property_type_filter
+    condition: "The question specifies the type of real estate"
+    sparql: |
+      FILTER(?propertyType = {rdfs:subClassOf rec:RealEstate}))
+  - id: location_filter
+    condition: "The question mentions a place"
+    sparql: |
+      ?addresSpec ?propertyLocation ?locationUri .
+      FILTER (?propertyLocation = {property io:city or io:neighborhood}) .
+      FILTER(?locationUri = {individual of io:City or io:Neighborhood}) .
+  - id: spatial_filter_within
+    condition: "The question asks for a zone or polygon"
+    sparql: |
+      ?space geo:hasGeometry ?geom .
+      ?geom geo:asWKT ?wkt .
+      FILTER(geof:sfWithin(?wkt, "POLYGON({POLYGON})"^^geo:wktLiteral)) .
+  - id: spatial_filter_distance
+    condition: "The question asks for a closeness to a place. If no distance provided, use 5000"
+    sparql: |
+      ?space geo:hasGeometry ?geom .
+      ?geom geo:asWKT ?wkt .
+      FILTER(geof:distance(?wkt, "POINT({POINT})"^^geo:wktLiteral, uom:metre) < {DISTANCE}) .
