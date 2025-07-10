@@ -1,0 +1,70 @@
+T1: Average price (per square meter or total)
+Examples of supported questions: ¿Cuál es el precio por metro cuadrado promedio de departamentos en La Plata? ¿Cuál es el precio de terrenos en zona norte? ¿Cuánto salía una casa en Berisso hace 6 meses?
+
+aggregation_mode:
+  param: metric
+  values:
+    - id: price_per_m2
+      condition: "The question includes expressions like 'per square meter', 'm²', or similar."
+      select_clause: "SELECT ?currency (SUM(?price) / SUM(?surface) AS ?avgPricePerM2)"
+      requires_surface: true
+    - id: total_price
+      condition: "The question refers to 'average price' but does not mention surface area."
+      select_clause: "SELECT ?currency (AVG(?price) AS ?avgPrice)"
+      requires_surface: false
+base_query: |
+  {{SELECT_CLAUSE}}
+  WHERE {
+    ?listing a pronto:RealEstateListing ;
+             sioc:about ?realEstate .
+    ?realEstate a ?propertyType .
+    ?realEstate rec:includes ?space .
+    ?listing io:hasFeature ?priceFeature .
+    ?priceFeature a io:Price ;
+                  io:hasValue ?priceSpec .
+    ?priceSpec a gr:UnitPriceSpecification ;
+               gr:hasCurrency ?currency ;
+               gr:priceType "BASE" ;
+               gr:hasCurrencyValue ?price .
+    {{#if requires_surface}}
+    ?space io:hasFeature ?sufaceFeature .
+    ?sufaceFeature a io:Surface ;
+                   io:hasValue ?sufaceSpec .
+    ?sufaceSpec a pronto:SizeSpecification ;
+                gr:hasValue ?surface .
+    {{/if}}
+    ?realEstate io:hasFeature ?addressFeature .
+    ?addressFeature a io:Address ;
+                   io:hasValue ?addresSpec .
+    ?addresSpec a io:PostalAddress .
+    {{OPTIONAL_BLOCKS}}
+  }
+  GROUP BY ?currency
+optional_blocks:
+  - id: property_type_filter
+    condition: "The question specifies the type of real estate"
+    sparql: |
+      FILTER(?propertyType = {rdfs:subClassOf rec:RealEstate}))
+  - id: location_filter
+    condition: "The question mentions a place"
+    sparql: |
+      ?addresSpec ?propertyLocation ?locationUri .
+      FILTER (?propertyLocation = {property io:city or io:neighborhood}) .
+      FILTER(?locationUri = {individual of io:City or io:Neighborhood}) .
+  - id: spatial_filter_within
+    condition: "The question asks for a zone or polygon"
+    sparql: |
+      ?space geo:hasGeometry ?geom .
+      ?geom geo:asWKT ?wkt .
+      FILTER(geof:sfWithin(?wkt, "POLYGON({POLYGON})"^^geo:wktLiteral)) .
+  - id: spatial_filter_distance
+    condition: "The question asks for a closeness to a place. If no distance provided, use 5000"
+    sparql: |
+      ?space geo:hasGeometry ?geom .
+      ?geom geo:asWKT ?wkt .
+      FILTER(geof:distance(?wkt, "POINT({POINT})"^^geo:wktLiteral, uom:metre) < {DISTANCE}) .
+  - id: time_filter
+    condition: "The question includes a temporal constraint"
+    sparql: |
+      ?priceFeature time:hasTime ?date .
+      FILTER(?date >= xsd:dateTime({DATE_FROM}) && ?date < xsd:dateTime({DATE_TO})) .
