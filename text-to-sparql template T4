@@ -1,0 +1,42 @@
+T4: Monthly evolution of the quantity of publications (stock)
+Examples of supported questions: ¿Cómo evolucionó la oferta de departamentos en Mar del Plata entre enero y junio?, ¿Aumentó la oferta tras el anuncio del asfaltado en Batán?
+
+base_query: |
+  SELECT ?year ?month (COUNT(DISTINCT ?listing) AS ?stock)
+  WHERE {
+    ?listing a pronto:RealEstateListing ;
+             sioc:about ?realEstate .
+    ?realEstate a ?propertyType .
+    ?listing io:hasFeature ?price .
+    ?price a io:Price ;
+           time:hasTime ?timeInstance .
+    ?timeInstance time:inXSDDateTimeStamp ?date .
+    FILTER(?date >= xsd:dateTime({DATE_FROM}) && ?date < xsd:dateTime({DATE_TO}))
+    BIND(YEAR(?date) AS ?year)
+    BIND(MONTH(?date) AS ?month)
+    {{ OPTIONAL_BLOCKS }}
+  }
+  GROUP BY ?year ?month
+  ORDER BY ?year ?month
+optional_blocks:
+  - id: location_filter
+    condition: "La pregunta menciona una ubicación"
+    sparql: |
+      ?realEstate io:hasFeature ?addressFeature .
+      ?addressFeature a io:Address ;
+                     io:hasValue ?addresSpec .
+      ?addresSpec a io:PostalAddress ;
+                  ?propertyLocation ?locationUri .
+      FILTER (?propertyLocation = {io:city or io:neighborhood}) .
+      FILTER(?locationUri = {individual of io:City or io:Neighborhood})) .
+  - id: spatial_filter
+    condition: "La pregunta menciona una zona geográfica mediante polígono"
+    sparql: |
+      ?realEstate rec:includes ?space .
+      ?space geo:hasGeometry ?geom .
+      ?geom geo:asWKT ?wkt .
+      FILTER(geof:sfWithin(?wkt, "POLYGON({POLYGON})"^^geo:wktLiteral)) .
+  - id: property_type_filter
+    condition: "La pregunta menciona tipos de inmueble"
+    sparql: |
+      FILTER(?propertyType = {rdfs:subClassOf rec:RealEstate})
