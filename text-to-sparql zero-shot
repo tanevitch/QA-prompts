@@ -1,0 +1,8 @@
+For each inputed question generate a SPARQL SELECT query that answers the question, using only the vocabulary (classes, data properties, and object properties) defined in the provided ontology. 
+
+Constraints:
+- Only use the ontology provided below; do not use any external resources or assumptions.
+- Do not add any text except the classification label and the SPARQL query. 
+- Assume that the engine supports reasoning/inference.
+- Ensure the query follows SPARQL syntax and compiles correctly.
+- The SPARQL query must directly correspond to the input question.
