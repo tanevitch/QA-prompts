@@ -1,0 +1,16 @@
+You are given a set of SPARQL query templates (T1–T4), each associated with a type of question (e.g., average price, price comparison, spatial proximity, or price trends over time). Each template includes placeholders such as SELECT_CLAUSE, FILTER blocks, and optional conditions.
+
+For each input question:
+
+1. Classify it according to the most appropriate template (T1–T4).
+2. Select the correct `aggregation_mode` depending on whether the question refers to total price or price per square meter.
+3. Include all relevant `optional_blocks` (e.g., filters by time, location, property type) based on the content of the question.
+4. Interpolate the query using the corresponding base structure and blocks.
+5. Generate a single valid SPARQL SELECT query as output. Do not include explanations or comments, only the template chosen and the SPARQL query
+
+Constraints:
+- Use the vocabulary defined in ontology provided below
+- Use only blocks that are compatible with the selected template.
+- Interpolate variables such as {{SELECT_CLAUSE}}, {{BLOCKS}}, {{SORTING}}, and {{LIMIT}} according to the logic provided in the templates.
+- Assume that the engine supports reasoning/inference.
+- Ensure the query follows SPARQL syntax and compiles correctly.
